@@ -134,6 +134,27 @@ yh_thread_name() {
   [ ${#t} -gt 38 ] && t="$(printf '%s' "$t" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
   printf '%s' "$t"
 }
+
+# yh_title_for_sid <sid> — human title for a session id (Desktop title → first task).
+yh_title_for_sid() {
+  local sid="$1" t="" df
+  df="$(grep -rlE "\"cliSessionId\": ?\"$sid\"" "$HOME/Library/Application Support/Claude/claude-code-sessions" 2>/dev/null | head -1)"
+  [ -n "$df" ] && t="$(jq -r '.title // empty' "$df" 2>/dev/null)"
+  if [ -z "$t" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
+    t="$(grep -m1 -F "\"sessionId\":\"$sid\"" "$HOME/.claude/history.jsonl" 2>/dev/null \
+        | jq -r '.display // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-60 | sed 's/[[:space:]]*$//')"
+  fi
+  [ ${#t} -gt 38 ] && t="$(printf '%s' "$t" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
+  printf '%s' "$t"
+}
+
+# yh_wrapped_sid — the session id of OUR screen-wrapped claude (empty if none).
+yh_wrapped_sid() {
+  local wd; wd="$(cat "${YH_V2_HOME:-$HOME/.yohuman-v2}/run/workdir" 2>/dev/null)"
+  [ -z "$wd" ] && return 0
+  grep -l "\"cwd\":\"$wd\"" "$HOME/.claude/sessions/"*.json 2>/dev/null | head -1 \
+    | xargs -I{} jq -r '.sessionId // empty' {} 2>/dev/null
+}
 YH__ENGINE__EOF
 cat > "$BIN/yohuman" <<'YH__ENGINE__EOF'
 #!/usr/bin/env bash
@@ -315,13 +336,43 @@ yh_ack_task() {
   # The session records its name a beat after injection — if we only resolved the
   # bare folder, wait and retry once so the ack lands in the final thread name.
   if [ "$title" = "$(basename "$wd")" ]; then sleep 2.5; title="$(yh_thread_name "$wd")"; fi
-  local body; body="On it: $(printf '%s' "$1" | tr '\n' ' ' | cut -c1-110)"
-  jq -n --arg c "$ch" --arg t "Working in $title" --arg b "$body" --arg s "code" \
+  yh_push_card "Working in $title" "On it: $(printf '%s' "$1" | tr '\n' ' ' | cut -c1-110)"
+}
+
+yh_push_card() {  # yh_push_card <title> <body>
+  [ -f "$HOME/.yohuman-v2/test-mode" ] && return 0
+  local ch="${YH_PUSH_CHANNEL:-}"; [ -z "$ch" ] && return 0
+  jq -n --arg c "$ch" --arg t "$1" --arg b "$2" --arg s "code" \
     '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
     | curl -s --max-time 12 -X POST "${YH_PUSH_URL:-https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push}" \
         -H "Authorization: Bearer ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
         -H "apikey: ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
         -H "Content-Type: application/json" -d @- >/dev/null 2>&1 || true
+}
+
+# yh_resume_reply <sid> <kind> <value> — continue an UNWRAPPED session (Claude
+# Desktop tab, plain CLI, or one that already ended) headlessly with the phone's
+# words: `claude -p --resume` keeps the SAME session id, so its hooks buzz back
+# into the SAME thread. This is what makes walk-away work for Desktop sessions.
+yh_resume_reply() {
+  local sid="$1" kind="$2" value="$3" text cwd title
+  case "$kind" in allow) text="yes";; reject) text="no";; *) text="$value";; esac
+  cwd="$(jq -r --arg s "$sid" 'select(.sessionId==$s) | .cwd // empty' "$HOME/.claude/sessions/"*.json 2>/dev/null | head -1)"
+  if [ -z "$cwd" ]; then
+    local df; df="$(grep -rlE "\"cliSessionId\": ?\"$sid\"" "$HOME/Library/Application Support/Claude/claude-code-sessions" 2>/dev/null | head -1)"
+    [ -n "$df" ] && cwd="$(jq -r '.cwd // empty' "$df" 2>/dev/null)"
+  fi
+  [ -z "$cwd" ] && cwd="$(grep -m1 -F "\"sessionId\":\"$sid\"" "$HOME/.claude/history.jsonl" 2>/dev/null | jq -r '.project // empty' 2>/dev/null)"
+  [ -z "$cwd" ] && cwd="$HOME"
+  title="$(yh_title_for_sid "$sid")"; [ -z "$title" ] && title="$(basename "$cwd")"
+  log "resume: continuing session ${sid:0:8}… in $cwd ('$title')"
+  yh_push_card "Working in $title" "On it: $(printf '%s' "$text" | tr '\n' ' ' | cut -c1-110)"
+  local CLAUDE_BIN; CLAUDE_BIN="$(command -v claude || true)"
+  [ -z "$CLAUDE_BIN" ] && for c in "$HOME/.local/bin/claude" /usr/local/bin/claude /opt/homebrew/bin/claude; do [ -x "$c" ] && CLAUDE_BIN="$c" && break; done
+  [ -z "$CLAUDE_BIN" ] && { log "resume FAILED: claude binary not found"; return 1; }
+  ( cd "$cwd" && nohup "$CLAUDE_BIN" -p --resume "$sid" --permission-mode acceptEdits "$text" \
+      >> "${YH_V2_LOG:-$HOME/.yohuman-v2/log}/resume.log" 2>&1 & )
+  return 0
 }
 
 process_one() {
@@ -330,7 +381,20 @@ process_one() {
   kind="$(jq -r '.kind' "$f" 2>/dev/null)"
   value="$(jq -r '.value' "$f" 2>/dev/null)"
   ts="$(jq -r '.ts' "$f" 2>/dev/null)"
-  log "reply $ts: kind=$kind value=$(printf '%s' "$value" | cut -c1-60)"
+  local rid; rid="$(jq -r '.request_id // empty' "$f" 2>/dev/null)"
+  log "reply $ts: kind=$kind value=$(printf '%s' "$value" | cut -c1-60)${rid:+ rid=$rid}"
+
+  # ROUTING: a reply that names a session we don't hold in the screen wrapper is
+  # continued via headless resume (Claude Desktop tab / plain CLI / ended session).
+  case "$rid" in
+    sid:*)
+      local target="${rid#sid:}"
+      if [ -n "$target" ] && [ "$target" != "$(yh_wrapped_sid)" ]; then
+        yh_resume_reply "$target" "$kind" "$value" \
+          && { mv "$f" "$f.done" 2>/dev/null || rm -f "$f"; return 0; }
+      fi
+      ;;
+  esac
 
   if ! yh_session_alive; then
     if [ "$kind" = "newtask" ]; then
@@ -495,11 +559,12 @@ poll_once() {
   # null / empty => nothing waiting
   [ -z "$resp" ] && return 1
   [ "$resp" = "null" ] && return 1
-  local kind body; kind="$(printf '%s' "$resp" | jq -r '.kind // empty' 2>/dev/null)"
+  local kind body rid; kind="$(printf '%s' "$resp" | jq -r '.kind // empty' 2>/dev/null)"
   body="$(printf '%s' "$resp" | jq -r '.body // empty' 2>/dev/null)"
+  rid="$(printf '%s' "$resp" | jq -r '.request_id // empty' 2>/dev/null)"
   [ -z "$kind" ] && return 1
   local ts; ts="$(date +%s)-$RANDOM"
-  jq -n --arg ts "$ts" --arg k "$kind" --arg v "$body" '{ts:$ts,kind:$k,value:$v}' > "$INBOX/$ts.json"
+  jq -n --arg ts "$ts" --arg k "$kind" --arg v "$body" --arg r "$rid"     '{ts:$ts,kind:$k,value:$v} + (if $r != "" then {request_id:$r} else {} end)' > "$INBOX/$ts.json"
   log "reply received → inbox: kind=$kind value=$(printf '%s' "$body" | cut -c1-50)"
   return 0
 }
@@ -596,8 +661,8 @@ esac
 # Never ship a garbage body (raw JSON etc.) to a lock screen.
 case "$BODY" in "{"*|"["*|"") BODY="Claude needs you — open the thread";; esac
 
-jq -n --arg c "$CH" --arg t "$TITLE" --arg b "$BODY" --arg s "code" \
-  '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
+jq -n --arg c "$CH" --arg t "$TITLE" --arg b "$BODY" --arg s "code" --arg r "${SID:+sid:$SID}" \
+  '{channel:$c,title:$t,body:$b,category:"INFO",source:$s} + (if $r != "" then {request_id:$r} else {} end)' \
   | curl -s --max-time 12 -X POST "$URL" -H "Authorization: Bearer $KEY" -H "apikey: $KEY" \
       -H "Content-Type: application/json" -d @- >/dev/null 2>&1 || true
 exit 0
