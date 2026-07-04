@@ -115,6 +115,25 @@ yh_answer_other() {
   sleep "$SETTLE"
   yh_enter           # submit
 }
+
+# yh_thread_name <workdir> — the human-facing name for the session running in
+# <workdir>: Claude Desktop's title → first task from history → folder basename.
+yh_thread_name() {
+  local wd="$1" sid="" t=""
+  sid="$(grep -l "\"cwd\":\"$wd\"" "$HOME/.claude/sessions/"*.json 2>/dev/null \
+        | head -1 | xargs -I{} jq -r '.sessionId // empty' {} 2>/dev/null)"
+  if [ -n "$sid" ]; then
+    local df; df="$(grep -rlE "\"cliSessionId\": ?\"$sid\"" "$HOME/Library/Application Support/Claude/claude-code-sessions" 2>/dev/null | head -1)"
+    [ -n "$df" ] && t="$(jq -r '.title // empty' "$df" 2>/dev/null)"
+    if [ -z "$t" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
+      t="$(grep -m1 -F "\"sessionId\":\"$sid\"" "$HOME/.claude/history.jsonl" 2>/dev/null \
+          | jq -r '.display // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-60 | sed 's/[[:space:]]*$//')"
+    fi
+  fi
+  [ -z "$t" ] && t="$(basename "$wd" 2>/dev/null)"
+  [ ${#t} -gt 38 ] && t="$(printf '%s' "$t" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
+  printf '%s' "$t"
+}
 YH__ENGINE__EOF
 cat > "$BIN/yohuman" <<'YH__ENGINE__EOF'
 #!/usr/bin/env bash
@@ -182,6 +201,7 @@ _start() {
   mkdir -p "$workdir" "$LOGDIR"
   if _alive; then echo "yohuman-code: session '$SESS' already running"; return 0; fi
   : > "$LOGDIR/screenlog.0"
+  printf '%s' "$workdir" > "${YH_V2_HOME:-$HOME/.yohuman-v2}/run/workdir" 2>/dev/null || true
   # screen 4.00.03 writes screenlog.0 to its OWN cwd, so launch from LOGDIR.
   ( cd "$LOGDIR" && screen -L -dmS "$SESS" bash -lc "cd '$workdir' && exec claude" )
   sleep 1
@@ -286,6 +306,23 @@ mkdir -p "$INBOX" "$SPOOL" "$(dirname "$LOGF")"
 
 log() { echo "$(date '+%H:%M:%S') $*" | tee -a "$LOGF"; }
 
+# Immediately confirm a phone task INTO the taking session's thread — the body echoes
+# the task text, which is how the app stitches the user's sent bubble to this thread.
+yh_ack_task() {
+  [ -f "$HOME/.yohuman-v2/test-mode" ] && return 0
+  local ch="${YH_PUSH_CHANNEL:-}"; [ -z "$ch" ] && return 0
+  local wd; wd="$(cat "${YH_V2_HOME:-$HOME/.yohuman-v2}/run/workdir" 2>/dev/null)"
+  [ -z "$wd" ] && wd="$HOME/YoHuman/workspace"
+  local title; title="$(yh_thread_name "$wd")"
+  local body; body="On it: $(printf '%s' "$1" | tr '\n' ' ' | cut -c1-110)"
+  jq -n --arg c "$ch" --arg t "Working in $title" --arg b "$body" --arg s "code" \
+    '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
+    | curl -s --max-time 12 -X POST "${YH_PUSH_URL:-https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push}" \
+        -H "Authorization: Bearer ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
+        -H "apikey: ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
+        -H "Content-Type: application/json" -d @- >/dev/null 2>&1 || true
+}
+
 process_one() {
   local f="$1"
   local kind value ts
@@ -359,6 +396,7 @@ YH__WS__MD
       yh_clear_input; sleep 0.3
       yh_type_submit "$value"
       log "injected new task"
+      yh_ack_task "$value"   # tell the phone WHICH session took it (stitches the thread)
       ;;
     other)
       local other_row
@@ -537,7 +575,7 @@ last_said() {  # last assistant text from the transcript, marker stripped, one l
   [ -f "$TRANS" ] || return 0
   tail -80 "$TRANS" 2>/dev/null \
     | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
-    | sed 's/\[\[.*//; s/📱.*//' | grep -v '^[[:space:]]*$' | tail -1 | tr '\n' ' ' | cut -c1-180
+    | sed 's/\[\[.*//; s/📱.*//' | grep -vE '^[[:space:][:punct:]]*$' | tail -1 | tr '\n' ' ' | cut -c1-180
 }
 # Title MUST be "<Event> in <project>" — the app names the session thread by parsing
 # the title after "in " (the push fn doesn't forward a project field).
