@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Yo Human installer — makes your local Claude Code driveable from the Yo Human app.
-# Usage:  curl -fsSL https://yohuman.ai/yohuman-install.sh | bash -s -- YOUR-PAIRING-CODE
+# Usage:  curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash -s -- YOUR-PAIRING-CODE
 set -euo pipefail
 CODE="${1:-}"
 HD="$HOME/.yohuman-v2"; BIN="$HD/bin"

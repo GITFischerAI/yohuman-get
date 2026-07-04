@@ -4,79 +4,207 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Yo Human — Founding Builder Setup</title>
+<title>Yo Human — Setup, Step by Step</title>
+<meta property="og:title" content="Yo Human — Setup, Step by Step" />
+<meta property="og:description" content="Get Claude Code to text your phone when it needs you. 5–10 minutes, no Terminal, plain-English steps." />
 <style>
-  :root { --bg:#0a0c13; --card:#12151f; --line:#232838; --text:#eceef5; --muted:#9aa0b4; --violet:#8b5cff; --cyan:#33d6e6; --green:#3ad29a; }
+  :root { --bg:#0a0c13; --card:#12151f; --line:#232838; --text:#eceef5; --muted:#9aa0b4; --violet:#8b5cff; --cyan:#33d6e6; --green:#3ad29a; --amber:#f5b544; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
-  .wrap { max-width:680px; margin:0 auto; padding:40px 22px 80px; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.65; }
+  .wrap { max-width:720px; margin:0 auto; padding:40px 22px 90px; }
   .eyebrow { color:var(--violet); font-weight:600; font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
-  h1 { font-size:30px; margin:6px 0 8px; }
-  .lede { color:var(--muted); font-size:16px; margin:0 0 8px; }
-  .step { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin:18px 0; }
-  .step h2 { font-size:18px; margin:0 0 6px; }
-  .num { display:inline-flex; width:26px; height:26px; border-radius:8px; background:rgba(139,92,255,.16); color:var(--violet); align-items:center; justify-content:center; font-weight:700; font-size:14px; margin-right:8px; }
-  ol { margin:10px 0 0; padding-left:22px; } li { margin:6px 0; }
+  h1 { font-size:32px; margin:6px 0 10px; line-height:1.2; }
+  .lede { color:var(--muted); font-size:16px; margin:0 0 4px; }
+  .time { display:inline-block; margin-top:12px; font-size:13px; color:var(--cyan); background:rgba(51,214,230,.12); border-radius:999px; padding:4px 12px; }
+
+  .need { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 22px; margin:22px 0; }
+  .need h3 { margin:0 0 8px; font-size:15px; color:var(--text); }
+  .need ul { margin:0; padding-left:20px; } .need li { margin:5px 0; color:var(--muted); font-size:14.5px; }
+
+  .part { margin:34px 0 0; }
+  .part-head { display:flex; align-items:center; gap:10px; margin:0 0 6px; }
+  .part-head .icon { font-size:22px; }
+  .part-head h2 { font-size:20px; margin:0; }
+  .part-sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
+
+  .step { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin:12px 0; }
+  .step .n { display:inline-flex; width:26px; height:26px; border-radius:8px; background:rgba(139,92,255,.16); color:var(--violet); align-items:center; justify-content:center; font-weight:700; font-size:14px; margin-right:10px; vertical-align:middle; }
+  .step .t { font-weight:600; font-size:15.5px; }
+  .step p { margin:8px 0 0; color:var(--muted); font-size:14.5px; }
+  .step p.do { color:var(--text); }
+  .why { margin-top:8px; font-size:13.5px; color:var(--cyan); }
+  .why b { color:var(--cyan); }
+
   code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
-  pre { background:#080a10; border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow-x:auto; font-size:13.5px; color:#d7dbe8; }
-  .hl { color:var(--violet); }
-  .note { color:var(--muted); font-size:14px; }
-  .pill { display:inline-block; font-size:12px; color:var(--cyan); background:rgba(51,214,230,.12); border-radius:999px; padding:3px 10px; }
-  .divider { height:1px; background:var(--line); margin:26px 0; }
+  code { background:#080a10; border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:13px; color:#d7dbe8; }
+  pre { background:#080a10; border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow-x:auto; font-size:13px; color:#d7dbe8; margin:12px 0 0; }
+  .hl { color:var(--violet); font-weight:700; }
+  kbd { background:#1a1e2b; border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 7px; font-size:12.5px; }
+
+  .done { border-color:rgba(58,210,154,.4); background:rgba(58,210,154,.07); }
+  .done .t { color:var(--green); }
+
+  .divider { height:1px; background:var(--line); margin:34px 0 24px; }
+  .trouble h2 { font-size:18px; margin:0 0 4px; }
+  .trouble .step { border-color:rgba(245,181,68,.28); }
+  .trouble .t { color:var(--amber); }
+
   a { color:var(--cyan); }
-  .foot { color:var(--muted); font-size:13px; margin-top:28px; }
+  .foot { color:var(--muted); font-size:13px; margin-top:30px; text-align:center; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Founding Builder</div>
+  <div class="eyebrow">Founding Builder · Private Preview</div>
   <h1>Set up Yo Human</h1>
-  <p class="lede">Get Claude Code to text your phone when it needs you — and reply with your next
-     instructions from anywhere. About 5 minutes. You'll need a Mac with <strong>Claude Code</strong> installed.</p>
-  <p><span class="pill">Private preview — rough edges expected</span></p>
+  <p class="lede">Yo Human lets the AI on your computer (<strong>Claude Code</strong>) buzz your phone when it
+     needs you — and you can <strong>text or talk back</strong> to keep it working, even when you're away from your desk.</p>
+  <span class="time">⏱️ About 5–10 minutes · one time · no “Terminal” needed</span>
 
-  <div class="step">
-    <h2><span class="num">1</span>On your phone</h2>
-    <ol>
-      <li>Tap your <strong>TestFlight invite</strong> → install <strong>TestFlight</strong>, then <strong>Yo Human</strong>.</li>
-      <li>Open <strong>Yo Human</strong> and allow notifications.</li>
-      <li>Copy your <strong>pairing code</strong> (looks like <code>yohuman-you-mac</code>).</li>
-    </ol>
+  <div class="need">
+    <h3>What you need before you start</h3>
+    <ul>
+      <li>📱 An iPhone</li>
+      <li>💻 A Mac computer (Apple laptop or desktop)</li>
+      <li>The <strong>Claude app</strong> already installed on that Mac, and you're signed in</li>
+      <li>The invite email from Brian (it's called a <strong>“TestFlight”</strong> invite)</li>
+    </ul>
   </div>
 
-  <div class="step">
-    <h2><span class="num">2</span>On your Mac — one time (no Terminal)</h2>
-    <p class="note">Open the <strong>Claude app</strong> on your Mac and click the
-       <strong><code>&lt;/&gt;</code> Code</strong> tab. <strong>Paste this message to Claude</strong>
-       (swap in your code from step 1) and send it:</p>
-    <pre>Please set up Yo Human on this Mac by running this command:
+  <!-- PART 1 -->
+  <div class="part">
+    <div class="part-head"><span class="icon">📱</span><h2>Part 1 — On your phone</h2></div>
+    <p class="part-sub">First we get the Yo Human app onto your iPhone.</p>
+
+    <div class="step">
+      <div><span class="n">1</span><span class="t">Open Brian's invite email and tap the button inside it.</span></div>
+      <p>This opens an Apple app called <strong>TestFlight</strong> — that's just how Apple lets you try apps before
+         they're in the App Store.</p>
+      <p>If your phone asks you to install <strong>TestFlight</strong> first, tap <strong>Get / Install</strong>,
+         then go back to Brian's email and tap the invite button again.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">2</span><span class="t">Install Yo Human.</span></div>
+      <p class="do">Inside TestFlight you'll see <strong>Yo Human</strong>. Tap <strong>Install</strong>
+         (or <strong>Accept</strong>, then <strong>Install</strong>). Wait for it to finish.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">3</span><span class="t">Open Yo Human.</span></div>
+      <p class="do">Tap the Yo Human app to open it.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">4</span><span class="t">Tap “Allow” when it asks about notifications.</span></div>
+      <p class="do">A box pops up asking if Yo Human can send you notifications. Tap <strong>Allow</strong>.</p>
+      <p class="why"><b>Why:</b> Notifications are the buzz on your phone. Without them, your computer can't
+         tell you when it needs you.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">5</span><span class="t">Find and copy your “pairing code.”</span></div>
+      <p class="do">On the screen you'll see a short code that looks like <code>yohuman-yourname-mac</code>.
+         Tap it to copy it.</p>
+      <p class="why"><b>What this is:</b> it's like the phone number that connects your phone to your computer.
+         You'll paste it in Part 2 — so keep it handy.</p>
+    </div>
+  </div>
+
+  <!-- PART 2 -->
+  <div class="part">
+    <div class="part-head"><span class="icon">💻</span><h2>Part 2 — On your Mac (one-time setup)</h2></div>
+    <p class="part-sub">You will <strong>not</strong> use anything scary. You'll just talk to Claude, and Claude does the setup for you.</p>
+
+    <div class="step">
+      <div><span class="n">1</span><span class="t">Open the Claude app on your Mac.</span></div>
+      <p class="do">It's the same app you use to chat with Claude.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">2</span><span class="t">Click the tab that says <code>&lt;/&gt; Code</code>.</span></div>
+      <p class="do">Look along the top or side of the Claude app for a small tab labeled
+         <strong><code>&lt;/&gt; Code</code></strong>. Click it.</p>
+      <p class="why"><b>What this is:</b> this is “Claude Code” — the version of Claude that can do things on your
+         computer, like set up Yo Human for you.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">3</span><span class="t">Paste this message to Claude.</span></div>
+      <p class="do">Copy the whole box below into the Claude Code chat.
+         <strong>Swap <span class="hl">YOUR-CODE</span> for the code you copied from your phone.</strong>
+         Then press <kbd>Return</kbd> to send it.</p>
+<pre>Please set up Yo Human on this Mac by running this command:
 curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash -s -- <span class="hl">YOUR-CODE</span></pre>
-    <p class="note">Claude runs it for you. If it asks permission to run the command, click <strong>Allow</strong>.
-       You'll see green ✓ lines ending in <strong>✅ Done</strong>. That's the whole setup.</p>
-    <p class="note"><strong>First time only:</strong> the <code>&lt;/&gt; Code</code> tab needs <strong>Claude Code</strong>
-       (free — <a href="https://claude.com/claude-code">claude.com/claude-code</a>). If Claude says <code>jq</code> is
-       missing, reply: <code>please install jq with: brew install jq</code>.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">4</span><span class="t">Click “Allow” if Claude asks permission.</span></div>
+      <p class="do">Claude might ask <em>“Can I run this command?”</em> Click <strong>Allow</strong> (or <strong>Yes</strong>).</p>
+      <p class="why"><b>Why:</b> you're giving Claude permission to do the setup for you. That's the whole point.</p>
+    </div>
+
+    <div class="step done">
+      <div><span class="n">5</span><span class="t">Wait for the green check marks.</span></div>
+      <p class="do">Claude shows a few lines with green ✓ marks, ending with
+         <strong>✅ Done. Yo Human is live on this Mac.</strong> When you see that, setup is finished. 🎉</p>
+      <p class="why">If Claude says something is missing (like <code>jq</code> or <code>Claude Code</code>), just reply:
+         <strong>“please install what's missing and try again.”</strong></p>
+    </div>
   </div>
 
-  <div class="step">
-    <h2><span class="num">3</span>That's it — drive it from your phone</h2>
-    <ol>
-      <li>Open <strong>Yo Human</strong> on your phone, tap the <strong>✏️</strong>, then
-          <strong>type or speak</strong> a task and send it.</li>
-      <li>Your Mac starts working automatically. When it finishes or needs you, your <strong>phone buzzes</strong>.</li>
-      <li><strong>Reply in the app</strong> — type or tap the mic — and it keeps going, from anywhere.</li>
-    </ol>
-    <p class="note">No Terminal, ever. The engine runs quietly in the background and restarts itself,
-       even after you reboot. Just keep the <strong>Claude app open</strong> on your Mac.</p>
+  <!-- PART 3 -->
+  <div class="part">
+    <div class="part-head"><span class="icon">✅</span><h2>Part 3 — How to use it</h2></div>
+    <p class="part-sub">This is the fun part — and it's all from your phone.</p>
+
+    <div class="step">
+      <div><span class="n">1</span><span class="t">Keep the Claude app open on your Mac.</span></div>
+      <p>Yo Human works while Claude is open on your computer. You can walk away — just don't quit the app.</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">2</span><span class="t">Start a task from your phone.</span></div>
+      <p class="do">Open <strong>Yo Human</strong>, tap the <strong>✏️ (pencil)</strong>, then <strong>type</strong> a task
+         or <strong>tap the microphone and say it</strong>. Tap send.</p>
+      <p>Example: <em>“Add a contact form to my website.”</em></p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">3</span><span class="t">Go do your thing.</span></div>
+      <p class="do">Your Mac starts working. When it finishes — or has a question — <strong>your phone buzzes.</strong> 📳</p>
+    </div>
+
+    <div class="step">
+      <div><span class="n">4</span><span class="t">Reply right from your phone.</span></div>
+      <p class="do">Open the buzz and <strong>type or talk</strong> to answer. Your computer keeps going.
+         You can be anywhere.</p>
+    </div>
   </div>
 
   <div class="divider"></div>
-  <p class="note"><strong>It's all local.</strong> Work runs on your Mac with your own Claude — Yo Human never
-     runs the AI, and nothing of your work goes to a third-party AI. No extra AI cost.</p>
-  <p class="note"><strong>Trouble?</strong> No buzz → check the app shows your Mac <em>paired</em> and phone
-     Notifications are on (not in a Focus/DND window). Nothing happens after you send a task → make sure the
-     <strong>Claude app is open</strong> on your Mac. Anything else → text Brian a screenshot.</p>
-  <p class="foot">Founding-builder preview of Yo Human. Text Brian a screenshot if anything's off.</p>
+
+  <!-- TROUBLE -->
+  <div class="trouble">
+    <h2>🛠️ If something doesn't work</h2>
+    <div class="step">
+      <div><span class="t">My phone never buzzed.</span></div>
+      <p>Open Yo Human and check it says your Mac is <strong>paired / connected</strong>. Make sure your phone's
+         notifications are on and it isn't in <strong>Do Not Disturb / Focus</strong> mode.</p>
+    </div>
+    <div class="step">
+      <div><span class="t">Nothing happened after I sent a task.</span></div>
+      <p>Make sure the <strong>Claude app is still open</strong> on your Mac.</p>
+    </div>
+    <div class="step">
+      <div><span class="t">Anything else, or it just looks weird.</span></div>
+      <p>Take a screenshot and text Brian. This is a first test — finding rough spots is exactly the job. 🙏</p>
+    </div>
+  </div>
+
+  <p class="foot"><strong>It's all local &amp; private.</strong> The work runs on your own Mac with your own Claude —
+     Yo Human never runs the AI and none of your work goes to a third-party AI. No extra AI cost.<br><br>
+     Founding-builder preview of Yo Human.</p>
 </div>
 </body>
 </html>
