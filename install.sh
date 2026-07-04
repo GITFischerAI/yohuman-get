@@ -212,10 +212,8 @@ _start() {
   echo "yohuman-code: started '$SESS' (claude in $workdir), log $LOGDIR/screenlog.0"
   # Birth the session's thread on the phone immediately (don't wait for the first
   # completion buzz). Skipped during test batches so test runs never buzz the phone.
-  if [ ! -f "$HOME/.yohuman-v2/test-mode" ]; then
-    HERE_NOTIFY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/yohuman-notify.sh"
-    printf '{"cwd":"%s"}' "$workdir" | bash "$HERE_NOTIFY" start >/dev/null 2>&1 || true
-  fi
+  # (birth push removed: it fired before the session had a name, splitting the
+  #  thread — the watcher's "On it" ack is the real start signal now)
 }
 
 case "${1:-attach}" in
@@ -569,6 +567,8 @@ fi
 # 2. the last thing the agent actually said (transcript) / the hook's own message
 # 3. only then a generic line
 SUMMARY="$(yh_extract_card 2>/dev/null)"
+# The agent's final line can lag the hook by up to screen's 1s log flush — wait and retry.
+if [ -z "$SUMMARY" ] && [ "$EVENT" = "stop" ]; then sleep 1.5; SUMMARY="$(yh_extract_card 2>/dev/null)"; fi
 MSG="$(printf '%s' "$INPUT" | jq -r '.message // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
 TRANS="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
 last_said() {  # last assistant text from the transcript, marker stripped, one line
