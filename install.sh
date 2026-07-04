@@ -312,6 +312,9 @@ yh_ack_task() {
   local wd; wd="$(cat "${YH_V2_HOME:-$HOME/.yohuman-v2}/run/workdir" 2>/dev/null)"
   [ -z "$wd" ] && wd="$HOME/YoHuman/workspace"
   local title; title="$(yh_thread_name "$wd")"
+  # The session records its name a beat after injection — if we only resolved the
+  # bare folder, wait and retry once so the ack lands in the final thread name.
+  if [ "$title" = "$(basename "$wd")" ]; then sleep 2.5; title="$(yh_thread_name "$wd")"; fi
   local body; body="On it: $(printf '%s' "$1" | tr '\n' ' ' | cut -c1-110)"
   jq -n --arg c "$ch" --arg t "Working in $title" --arg b "$body" --arg s "code" \
     '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
