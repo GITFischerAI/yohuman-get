@@ -636,24 +636,26 @@ fi
 # 3. only then a generic line
 SUMMARY="$(yh_extract_card 2>/dev/null)"
 # The agent's final line can lag the hook by up to screen's 1s log flush — wait and retry.
-if [ -z "$SUMMARY" ] && [ "$EVENT" = "stop" ]; then sleep 1.5; SUMMARY="$(yh_extract_card 2>/dev/null)"; fi
+if [ -z "$SUMMARY" ] && [ "$EVENT" = "stop" ] && [ -n "$SID" ] && [ "$SID" = "$(yh_wrapped_sid)" ]; then sleep 1.5; SUMMARY="$(yh_extract_card 2>/dev/null)"; fi
 MSG="$(printf '%s' "$INPUT" | jq -r '.message // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
 TRANS="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
-last_said() {  # last assistant text from the transcript, marker stripped, one line
+last_said() {  # the session's REAL final message from its own transcript (full text)
   [ -f "$TRANS" ] || return 0
-  tail -80 "$TRANS" 2>/dev/null \
-    | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
-    | sed 's/\[\[.*//; s/📱.*//' | grep -vE '^[[:space:][:punct:]]*$' | tail -1 | tr '\n' ' ' | cut -c1-180
+  tail -200 "$TRANS" 2>/dev/null \
+    | jq -rs '[ .[] | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text ] | last // empty' 2>/dev/null \
+    | sed '/📱/d' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' | head -c 1500
 }
 # Title MUST be "<Event> in <project>" — the app names the session thread by parsing
 # the title after "in " (the push fn doesn't forward a project field).
 case "$EVENT" in
   stop)  TITLE="Finished in $PROJ"
-         BODY="${SUMMARY:-$(last_said)}"; BODY="${BODY:-Claude finished — ready for your next task}";;
+         BODY="$(last_said)"
+         # the screen-log 📱[[card]] belongs to OUR wrapped session only — never let
+         # another session inherit its stale summary (the council.txt fossil bug)
+         if [ -z "$BODY" ] && [ -n "$SID" ] && [ "$SID" = "$(yh_wrapped_sid)" ]; then BODY="$SUMMARY"; fi
+         BODY="${BODY:-Claude finished — ready for your next task}";;
   idle)  TITLE="Waiting in $PROJ"
-         # For waiting, the hook message says WHAT it waits on (permission/answer).
-         # A screen-log [[card]] could be stale here — message first.
-         BODY="${MSG:-$SUMMARY}"; BODY="${BODY:-Claude needs your answer}";;
+         BODY="${MSG:-$(last_said)}"; BODY="${BODY:-Claude needs your answer}";;
   error) TITLE="Error in $PROJ";  BODY="${MSG:-${SUMMARY:-Claude hit an error — needs you}}";;
   start) TITLE="Started in $PROJ"; BODY="New session ready — send tasks from your phone";;
   *)     TITLE="Yo Human in $PROJ"; BODY="${MSG:-${SUMMARY:-Claude needs you}}";;
