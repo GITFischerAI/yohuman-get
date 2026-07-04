@@ -325,8 +325,16 @@ mkdir -p "$INBOX" "$SPOOL" "$(dirname "$LOGF")"
 
 log() { echo "$(date '+%H:%M:%S') $*" | tee -a "$LOGF"; }
 
-# Immediately confirm a phone task INTO the taking session's thread — the body echoes
-# the task text, which is how the app stitches the user's sent bubble to this thread.
+# 20 ways to say "got it" — rotated so acks feel human, never parroting the task back.
+YH_ACKS=("On it." "Back to work." "Let me take a look…" "Processing now." "Hold tight." \
+  "Working on it." "Consider it started." "Rolling." "On the case." "Digging in." \
+  "Got it — starting now." "Say less." "Already moving." "Spinning up." "In progress." \
+  "Taking a crack at it." "You got it." "Off to work." "Starting now." "Copy that.")
+yh_ack_phrase() { printf '%s' "${YH_ACKS[$(( RANDOM % ${#YH_ACKS[@]} ))]}"; }
+
+# Immediately confirm a phone task INTO the taking session's thread. The card shows a
+# short human ack; the request_id carries a task fingerprint so the app can stitch the
+# user's sent bubble to this thread WITHOUT parroting the text in the visible card.
 yh_ack_task() {
   [ -f "$HOME/.yohuman-v2/test-mode" ] && return 0
   local ch="${YH_PUSH_CHANNEL:-}"; [ -z "$ch" ] && return 0
@@ -336,14 +344,15 @@ yh_ack_task() {
   # The session records its name a beat after injection — if we only resolved the
   # bare folder, wait and retry once so the ack lands in the final thread name.
   if [ "$title" = "$(basename "$wd")" ]; then sleep 2.5; title="$(yh_thread_name "$wd")"; fi
-  yh_push_card "Working in $title" "On it: $(printf '%s' "$1" | tr '\n' ' ' | cut -c1-110)"
+  local key; key="$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-60)"
+  yh_push_card "Working in $title" "$(yh_ack_phrase)" "task:$key"
 }
 
-yh_push_card() {  # yh_push_card <title> <body>
+yh_push_card() {  # yh_push_card <title> <body> [request_id]
   [ -f "$HOME/.yohuman-v2/test-mode" ] && return 0
   local ch="${YH_PUSH_CHANNEL:-}"; [ -z "$ch" ] && return 0
-  jq -n --arg c "$ch" --arg t "$1" --arg b "$2" --arg s "code" \
-    '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
+  jq -n --arg c "$ch" --arg t "$1" --arg b "$2" --arg s "code" --arg r "${3:-}" \
+    '{channel:$c,title:$t,body:$b,category:"INFO",source:$s} + (if $r != "" then {request_id:$r} else {} end)' \
     | curl -s --max-time 12 -X POST "${YH_PUSH_URL:-https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push}" \
         -H "Authorization: Bearer ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
         -H "apikey: ${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}" \
@@ -366,7 +375,7 @@ yh_resume_reply() {
   [ -z "$cwd" ] && cwd="$HOME"
   title="$(yh_title_for_sid "$sid")"; [ -z "$title" ] && title="$(basename "$cwd")"
   log "resume: continuing session ${sid:0:8}… in $cwd ('$title')"
-  yh_push_card "Working in $title" "On it: $(printf '%s' "$text" | tr '\n' ' ' | cut -c1-110)"
+  yh_push_card "Working in $title" "$(yh_ack_phrase)"
   local CLAUDE_BIN; CLAUDE_BIN="$(command -v claude || true)"
   [ -z "$CLAUDE_BIN" ] && for c in "$HOME/.local/bin/claude" /usr/local/bin/claude /opt/homebrew/bin/claude; do [ -x "$c" ] && CLAUDE_BIN="$c" && break; done
   [ -z "$CLAUDE_BIN" ] && { log "resume FAILED: claude binary not found"; return 1; }
@@ -643,7 +652,7 @@ last_said() {  # the session's REAL final message from its own transcript (full 
   [ -f "$TRANS" ] || return 0
   tail -200 "$TRANS" 2>/dev/null \
     | jq -rs '[ .[] | select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text ] | last // empty' 2>/dev/null \
-    | sed '/📱/d' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' | head -c 1500
+    | sed -e '/📱/d' -e 's/\*\*//g' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' | head -c 2800
 }
 # Title MUST be "<Event> in <project>" — the app names the session thread by parsing
 # the title after "in " (the push fn doesn't forward a project field).
