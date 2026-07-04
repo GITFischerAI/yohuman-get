@@ -688,9 +688,12 @@ if [ -z "$CODE" ] && [ -f "$CFG" ]; then
   CODE="$(. "$CFG" 2>/dev/null; echo "${YH_PUSH_CHANNEL:-}")"
 fi
 if [ -z "$CODE" ]; then
+  # SECURITY: the channel code is the pairing secret — it must not be guessable
+  # (user+hostname was). Mint: yohuman-<user>-<6 random chars>.
   u="$(whoami | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9' | cut -c1-12)"
-  h="$(hostname -s | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9' | cut -c1-12)"
-  CODE="yohuman-$u-$h"
+  suf="$(od -An -tx1 -N4 /dev/urandom 2>/dev/null | tr -d ' \n' | cut -c1-6 || true)"
+  [ -z "$suf" ] && suf="$(printf '%s' "$RANDOM$RANDOM" | cut -c1-6)"
+  CODE="yohuman-$u-$suf"
 fi
 {
   echo 'YH_PUSH_URL="https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push"'
@@ -741,6 +744,17 @@ PL
 make_agent ai.yohuman.watcher yohuman-watcher.sh
 make_agent ai.yohuman.replypoll yohuman-replypoll.sh
 echo "✓ engine running (starts automatically at login from now on)"
+
+# FIRST-VALUE MOMENT: the instant the phone pairs to this channel, deliver a real
+# card so the user's first act is a successful round-trip — not a blank screen.
+# (Push fn reports sent:0 until a device registers; retry quietly for ~10 min.)
+if [ -z "${YH_SKIP_LAUNCHD:-}" ]; then
+  ( for _i in $(seq 1 40); do
+      _r="$(jq -n --arg c "$CODE"         '{channel:$c,title:"Yo Human is live 🎉",body:"Setup complete — this Mac can now reach you anywhere. Try it: reply anything (even just hi) and watch your Mac answer from your pocket.",category:"INFO",source:"code"}'         | curl -s --max-time 10 -X POST "https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push"             -H "Authorization: Bearer sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1"             -H "apikey: sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1"             -H "Content-Type: application/json" -d @- 2>/dev/null)"
+      printf '%s' "$_r" | grep -q '"sent":0' || break
+      sleep 15
+    done ) >/dev/null 2>&1 &
+fi
 echo ""
 echo "✅ Done. Yo Human is live on this Mac."
 echo ""
