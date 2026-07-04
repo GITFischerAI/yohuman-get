@@ -507,6 +507,18 @@ KEY="${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}"
 
 PROJ="$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null | xargs basename 2>/dev/null)"
 [ -z "$PROJ" ] && PROJ="your project"
+# SESSION SYNC: name the thread after the session's FIRST task (what Claude Desktop
+# does for its own titles), so phone threads match how the human thinks of sessions.
+# CLI + yohuman-code + phone-spawned sessions record it in history.jsonl.
+SID="$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)"
+if [ -n "$SID" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
+  T="$(grep -m1 -F "\"sessionId\":\"$SID\"" "$HOME/.claude/history.jsonl" 2>/dev/null \
+      | jq -r '.display // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-60 | sed 's/[[:space:]]*$//')"
+  if [ -n "$T" ]; then
+    [ ${#T} -gt 38 ] && T="$(printf '%s' "$T" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
+    PROJ="$T"
+  fi
+fi
 
 # ---- CONTEXT, not boilerplate. Three sources, best first: -------------------
 # 1. the agent's own [[one-line card]] from the screen log (premium, $0)
