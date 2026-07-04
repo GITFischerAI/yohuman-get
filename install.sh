@@ -507,17 +507,23 @@ KEY="${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}"
 
 PROJ="$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null | xargs basename 2>/dev/null)"
 [ -z "$PROJ" ] && PROJ="your project"
-# SESSION SYNC: name the thread after the session's FIRST task (what Claude Desktop
-# does for its own titles), so phone threads match how the human thinks of sessions.
-# CLI + yohuman-code + phone-spawned sessions record it in history.jsonl.
+# SESSION SYNC: phone threads carry the SAME name the human sees in Claude.
+# Priority: 1) the Claude Desktop app's own session title (exact match with the
+# Recents list) → 2) the session's first task from history.jsonl → 3) the folder.
 SID="$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)"
-if [ -n "$SID" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
+T=""
+CCD="$HOME/Library/Application Support/Claude/claude-code-sessions"
+if [ -n "$SID" ] && [ -d "$CCD" ]; then
+  DF="$(grep -rlE "\"cliSessionId\": ?\"$SID\"" "$CCD" 2>/dev/null | head -1)"
+  [ -n "$DF" ] && T="$(jq -r '.title // empty' "$DF" 2>/dev/null)"
+fi
+if [ -z "$T" ] && [ -n "$SID" ] && [ -f "$HOME/.claude/history.jsonl" ]; then
   T="$(grep -m1 -F "\"sessionId\":\"$SID\"" "$HOME/.claude/history.jsonl" 2>/dev/null \
       | jq -r '.display // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-60 | sed 's/[[:space:]]*$//')"
-  if [ -n "$T" ]; then
-    [ ${#T} -gt 38 ] && T="$(printf '%s' "$T" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
-    PROJ="$T"
-  fi
+fi
+if [ -n "$T" ]; then
+  [ ${#T} -gt 38 ] && T="$(printf '%s' "$T" | cut -c1-38 | sed 's/[[:space:]]*$//')…"
+  PROJ="$T"
 fi
 
 # ---- CONTEXT, not boilerplate. Three sources, best first: -------------------
