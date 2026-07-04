@@ -491,6 +491,17 @@ YH__ENGINE__EOF
 chmod +x "$BIN/yohuman" "$BIN"/*.sh
 echo "✓ engine installed → $BIN"
 CFG="$HD/config.sh"
+# Pairing code: use the one passed in, else keep the existing pairing (re-runs are
+# safe), else mint one from user+machine. The PHONE enters this code in the app's
+# "Add channel" screen — the Mac is the source of truth for the code.
+if [ -z "$CODE" ] && [ -f "$CFG" ]; then
+  CODE="$(. "$CFG" 2>/dev/null; echo "${YH_PUSH_CHANNEL:-}")"
+fi
+if [ -z "$CODE" ]; then
+  u="$(whoami | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9' | cut -c1-12)"
+  h="$(hostname -s | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9' | cut -c1-12)"
+  CODE="yohuman-$u-$h"
+fi
 {
   echo 'YH_PUSH_URL="https://ahfdcubxjcahonmzdoww.supabase.co/functions/v1/push"'
   echo 'YH_PUSH_KEY="sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1"'
@@ -502,7 +513,7 @@ CFG="$HD/config.sh"
   echo 'YH_V2_SCREEN="yh"'
   echo 'YH_V2_WORKDIR="$PWD"'
 } > "$CFG"
-[ -n "$CODE" ] && echo "✓ paired to channel: $CODE" || echo "! run: yohuman pair <code>  (get it from the app)"
+echo "✓ this Mac's channel code: $CODE"
 if [ -w /usr/local/bin ]; then ln -sf "$BIN/yohuman" /usr/local/bin/yohuman; echo "✓ yohuman on PATH (/usr/local/bin)";
 else mkdir -p "$HOME/.local/bin"; ln -sf "$BIN/yohuman" "$HOME/.local/bin/yohuman";
      echo "✓ yohuman → ~/.local/bin  (if 'yohuman' isn't found, run: export PATH=\$HOME/.local/bin:\$PATH)"; fi
@@ -542,5 +553,15 @@ make_agent ai.yohuman.replypoll yohuman-replypoll.sh
 echo "✓ engine running (starts automatically at login from now on)"
 echo ""
 echo "✅ Done. Yo Human is live on this Mac."
-echo "   • Start a task from your PHONE anytime (tap the ✏️ in the app) — no Terminal needed."
-echo "   • Or, if you use Claude Code directly, launch it with:  yohuman code"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📲 LAST STEP — connect your phone:"
+echo ""
+echo "   YOUR CHANNEL CODE:   $CODE"
+echo ""
+echo "   On your phone, open Yo Human →  Add channel  → type that code exactly."
+echo "   (If you don't see Add channel on the first screen, look under Manage channels.)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Then: start a task from your PHONE anytime (tap the ✏️ in the app) — no Terminal needed."
+echo "Or, if you use Claude Code directly, launch it with:  yohuman code"

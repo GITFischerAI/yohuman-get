@@ -100,14 +100,7 @@
       <p class="do">A box pops up asking if Yo Human can send you notifications. Tap <strong>Allow</strong>.</p>
       <p class="why"><b>Why:</b> Notifications are the buzz on your phone. Without them, your computer can't
          tell you when it needs you.</p>
-    </div>
-
-    <div class="step">
-      <div><span class="n">5</span><span class="t">Find and copy your “pairing code.”</span></div>
-      <p class="do">On the screen you'll see a short code that looks like <code>yohuman-yourname-mac</code>.
-         Tap it to copy it.</p>
-      <p class="why"><b>What this is:</b> it's like the phone number that connects your phone to your computer.
-         You'll paste it in Part 2 — so keep it handy.</p>
+      <p>That's it for the phone (for now). Set it down and go to your Mac.</p>
     </div>
   </div>
 
@@ -131,11 +124,11 @@
 
     <div class="step">
       <div><span class="n">3</span><span class="t">Paste this message to Claude.</span></div>
-      <p class="do">Copy the whole box below into the Claude Code chat.
-         <strong>Swap <span class="hl">YOUR-CODE</span> for the code you copied from your phone.</strong>
-         Then press <kbd>Return</kbd> to send it.</p>
-<pre>Please set up Yo Human on this Mac by running this command:
-curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash -s -- <span class="hl">YOUR-CODE</span></pre>
+      <p class="do">Copy the whole box below into the Claude Code chat — <strong>exactly as it is, nothing to
+         change</strong> — and press <kbd>Return</kbd> to send it.</p>
+<pre>Please set up Yo Human on this Mac by running this command,
+then show me the channel code it prints at the end:
+curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash</pre>
     </div>
 
     <div class="step">
@@ -144,12 +137,24 @@ curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash -s -- <s
       <p class="why"><b>Why:</b> you're giving Claude permission to do the setup for you. That's the whole point.</p>
     </div>
 
-    <div class="step done">
-      <div><span class="n">5</span><span class="t">Wait for the green check marks.</span></div>
-      <p class="do">Claude shows a few lines with green ✓ marks, ending with
-         <strong>✅ Done. Yo Human is live on this Mac.</strong> When you see that, setup is finished. 🎉</p>
-      <p class="why">If Claude says something is missing (like <code>jq</code> or <code>Claude Code</code>), just reply:
+    <div class="step">
+      <div><span class="n">5</span><span class="t">Wait for the green check marks — and your channel code.</span></div>
+      <p class="do">Claude shows a few lines with green ✓ marks, ending with <strong>✅ Done</strong> and a box like this:</p>
+<pre>📲 LAST STEP — connect your phone:
+
+   YOUR CHANNEL CODE:   yohuman-yourname-yourmac</pre>
+      <p class="why"><b>What this is:</b> the channel code is like your Mac's phone number.
+         In the next step you'll save it in the app so this Mac can buzz this phone.</p>
+      <p class="why">If Claude says something is missing (like <code>jq</code>), just reply:
          <strong>“please install what's missing and try again.”</strong></p>
+    </div>
+
+    <div class="step done">
+      <div><span class="n">6</span><span class="t">Pick up your phone and enter that code.</span></div>
+      <p class="do">On your phone: open <strong>Yo Human</strong> → tap <strong>Add channel</strong>
+         (if you don't see it on the first screen, look under <strong>Manage channels</strong>) →
+         <strong>type the channel code</strong> exactly as Claude showed it → save.</p>
+      <p class="do">When the channel appears in your list, <strong>setup is finished.</strong> 🎉</p>
     </div>
   </div>
 
