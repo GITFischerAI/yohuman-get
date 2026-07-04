@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Yo Human — Founding Builder Setup</title>
+<style>
+  :root { --bg:#0a0c13; --card:#12151f; --line:#232838; --text:#eceef5; --muted:#9aa0b4; --violet:#8b5cff; --cyan:#33d6e6; --green:#3ad29a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
+  .wrap { max-width:680px; margin:0 auto; padding:40px 22px 80px; }
+  .eyebrow { color:var(--violet); font-weight:600; font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  h1 { font-size:30px; margin:6px 0 8px; }
+  .lede { color:var(--muted); font-size:16px; margin:0 0 8px; }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin:18px 0; }
+  .step h2 { font-size:18px; margin:0 0 6px; }
+  .num { display:inline-flex; width:26px; height:26px; border-radius:8px; background:rgba(139,92,255,.16); color:var(--violet); align-items:center; justify-content:center; font-weight:700; font-size:14px; margin-right:8px; }
+  ol { margin:10px 0 0; padding-left:22px; } li { margin:6px 0; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:#080a10; border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow-x:auto; font-size:13.5px; color:#d7dbe8; }
+  .hl { color:var(--violet); }
+  .note { color:var(--muted); font-size:14px; }
+  .pill { display:inline-block; font-size:12px; color:var(--cyan); background:rgba(51,214,230,.12); border-radius:999px; padding:3px 10px; }
+  .divider { height:1px; background:var(--line); margin:26px 0; }
+  a { color:var(--cyan); }
+  .foot { color:var(--muted); font-size:13px; margin-top:28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Founding Builder</div>
+  <h1>Set up Yo Human</h1>
+  <p class="lede">Get Claude Code to text your phone when it needs you — and reply with your next
+     instructions from anywhere. About 5 minutes. You'll need a Mac with <strong>Claude Code</strong> installed.</p>
+  <p><span class="pill">Private preview — rough edges expected</span></p>
+
+  <div class="step">
+    <h2><span class="num">1</span>On your phone</h2>
+    <ol>
+      <li>Tap your <strong>TestFlight invite</strong> → install <strong>TestFlight</strong>, then <strong>Yo Human</strong>.</li>
+      <li>Open <strong>Yo Human</strong> and allow notifications.</li>
+      <li>Copy your <strong>pairing code</strong> (looks like <code>yohuman-you-mac</code>).</li>
+    </ol>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span>On your Mac — one time (no Terminal)</h2>
+    <p class="note">Open the <strong>Claude app</strong> on your Mac and click the
+       <strong><code>&lt;/&gt;</code> Code</strong> tab. <strong>Paste this message to Claude</strong>
+       (swap in your code from step 1) and send it:</p>
+    <pre>Please set up Yo Human on this Mac by running this command:
+curl -fsSL https://gitfischerai.github.io/yohuman-get/install.sh | bash -s -- <span class="hl">YOUR-CODE</span></pre>
+    <p class="note">Claude runs it for you. If it asks permission to run the command, click <strong>Allow</strong>.
+       You'll see green ✓ lines ending in <strong>✅ Done</strong>. That's the whole setup.</p>
+    <p class="note"><strong>First time only:</strong> the <code>&lt;/&gt; Code</code> tab needs <strong>Claude Code</strong>
+       (free — <a href="https://claude.com/claude-code">claude.com/claude-code</a>). If Claude says <code>jq</code> is
+       missing, reply: <code>please install jq with: brew install jq</code>.</p>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span>That's it — drive it from your phone</h2>
+    <ol>
+      <li>Open <strong>Yo Human</strong> on your phone, tap the <strong>✏️</strong>, then
+          <strong>type or speak</strong> a task and send it.</li>
+      <li>Your Mac starts working automatically. When it finishes or needs you, your <strong>phone buzzes</strong>.</li>
+      <li><strong>Reply in the app</strong> — type or tap the mic — and it keeps going, from anywhere.</li>
+    </ol>
+    <p class="note">No Terminal, ever. The engine runs quietly in the background and restarts itself,
+       even after you reboot. Just keep the <strong>Claude app open</strong> on your Mac.</p>
+  </div>
+
+  <div class="divider"></div>
+  <p class="note"><strong>It's all local.</strong> Work runs on your Mac with your own Claude — Yo Human never
+     runs the AI, and nothing of your work goes to a third-party AI. No extra AI cost.</p>
+  <p class="note"><strong>Trouble?</strong> No buzz → check the app shows your Mac <em>paired</em> and phone
+     Notifications are on (not in a Focus/DND window). Nothing happens after you send a task → make sure the
+     <strong>Claude app is open</strong> on your Mac. Anything else → text Brian a screenshot.</p>
+  <p class="foot">Founding-builder preview of Yo Human. Text Brian a screenshot if anything's off.</p>
+</div>
+</body>
+</html>
