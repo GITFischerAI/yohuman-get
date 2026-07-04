@@ -304,8 +304,12 @@ process_one() {
       sleep 2; yh_enter; sleep 3     # clear the first-run trust prompt if shown
       yh_session_alive || { log "ABORT: could not auto-start a session"; return 1; }
     else
-      log "ABORT: screen session '$SESS' not running — leaving reply queued"
-      return 1
+      # A reply (other/choice/allow/reject) targets a live prompt. If the session is
+      # gone, that prompt no longer exists — retrying forever would block the queue
+      # (head-of-line). Archive it as stale and move on.
+      log "STALE: '$kind' reply but session '$SESS' is gone — archiving, moving on"
+      mv "$f" "$f.stale" 2>/dev/null || rm -f "$f"
+      return 0
     fi
   fi
   # NOTE: we do NOT run a type-probe here — a text probe doesn't echo when a question
@@ -316,7 +320,28 @@ process_one() {
   local before after
   before="$(yh_log_bytes)"
 
+  # PERMISSION MENU AWARENESS: if Claude is sitting at a "Do you want to …?" menu,
+  # a text reply from the phone means an ANSWER to that menu, not a new task:
+  #   yes-words → Enter (approve) · no-words → Esc (reject) ·
+  #   anything else → Esc (cancel the pending action), then inject the text as the
+  #   new direction. No time window — works however late the human replies.
+  if [ "$kind" = "newtask" ] || [ "$kind" = "other" ]; then
+    if yh_log_clean | tail -30 | grep -q 'Do you want to'; then
+      local v; v="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | sed 's/[[:punct:]]*$//' | xargs)"
+      case "$v" in
+        yes|y|yep|yeah|ok|okay|allow|approve|approved|sure|proceed|continue|go|"go ahead"|"do it")
+          log "permission menu open — '$value' → approving (Enter)"; yh_enter; kind="__handled__";;
+        no|n|nope|reject|rejected|deny|stop|cancel|dont|"don't"|"do not")
+          log "permission menu open — '$value' → rejecting (Esc)"; yh_esc; kind="__handled__";;
+        *)
+          log "permission menu open — new direction: Esc, then inject the text"
+          yh_esc; sleep 1; yh_clear_input; sleep 0.3; yh_type_submit "$value"; kind="__handled__";;
+      esac
+    fi
+  fi
+
   case "$kind" in
+    __handled__) : ;;  # permission-menu path above already sent the keystrokes
     newtask)
       yh_clear_input; sleep 0.3
       yh_type_submit "$value"
