@@ -299,6 +299,19 @@ process_one() {
       # No session running? A phone-initiated task SPAWNS one (no Terminal needed):
       # the user taps ✏️ on the phone and work starts in the default workspace.
       local ws="$HOME/YoHuman/workspace"; mkdir -p "$ws"
+      # Seed the workspace brief once: the human is ON THEIR PHONE — the agent writes
+      # its own one-line phone card (premium context, $0) and keeps questions short.
+      if [ ! -f "$ws/CLAUDE.md" ]; then cat > "$ws/CLAUDE.md" <<'YH__WS__MD'
+# Yo Human workspace
+The human is AWAY from this computer, reading short cards on their phone.
+
+- End EVERY response with exactly one line in this format (it becomes their
+  phone notification): 📱[[what you did or what you need — plain English, under 90 characters]]
+- Ask at most ONE question at a time, phrased so it can be answered by a short
+  text or "yes"/"no" from a phone.
+- Prefer finishing work over asking; only stop when you truly need the human.
+YH__WS__MD
+      fi
       log "no session — auto-starting one in $ws for the phone task"
       bash "$HERE/yohuman-code.sh" start "$ws" >/dev/null 2>&1
       sleep 2; yh_enter; sleep 3     # clear the first-run trust prompt if shown
@@ -495,17 +508,34 @@ KEY="${YH_PUSH_KEY:-sb_publishable_hdgb0arXA-MlSIdTn-aRfQ_vL_XG-g1}"
 PROJ="$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null | xargs basename 2>/dev/null)"
 [ -z "$PROJ" ] && PROJ="your project"
 
-# Prefer the agent's own one-line card scraped from the screen log; fall back to a generic line.
+# ---- CONTEXT, not boilerplate. Three sources, best first: -------------------
+# 1. the agent's own [[one-line card]] from the screen log (premium, $0)
+# 2. the last thing the agent actually said (transcript) / the hook's own message
+# 3. only then a generic line
 SUMMARY="$(yh_extract_card 2>/dev/null)"
+MSG="$(printf '%s' "$INPUT" | jq -r '.message // empty' 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
+TRANS="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
+last_said() {  # last assistant text from the transcript, marker stripped, one line
+  [ -f "$TRANS" ] || return 0
+  tail -80 "$TRANS" 2>/dev/null \
+    | jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' 2>/dev/null \
+    | sed 's/\[\[.*//; s/📱.*//' | grep -v '^[[:space:]]*$' | tail -1 | tr '\n' ' ' | cut -c1-180
+}
 # Title MUST be "<Event> in <project>" — the app names the session thread by parsing
 # the title after "in " (the push fn doesn't forward a project field).
 case "$EVENT" in
-  stop)  TITLE="Finished in $PROJ"; BODY="${SUMMARY:-Claude finished — ready for your next task}";;
-  idle)  TITLE="Waiting in $PROJ";  BODY="${SUMMARY:-Claude needs your answer}";;
-  error) TITLE="Error in $PROJ";    BODY="${SUMMARY:-Claude hit an error — needs you}";;
-  start) TITLE="Started in $PROJ";  BODY="${SUMMARY:-Session started — ready for your tasks}";;
-  *)     TITLE="Yo Human in $PROJ"; BODY="${SUMMARY:-Claude needs you}";;
+  stop)  TITLE="Finished in $PROJ"
+         BODY="${SUMMARY:-$(last_said)}"; BODY="${BODY:-Claude finished — ready for your next task}";;
+  idle)  TITLE="Waiting in $PROJ"
+         # For waiting, the hook message says WHAT it waits on (permission/answer).
+         # A screen-log [[card]] could be stale here — message first.
+         BODY="${MSG:-$SUMMARY}"; BODY="${BODY:-Claude needs your answer}";;
+  error) TITLE="Error in $PROJ";  BODY="${MSG:-${SUMMARY:-Claude hit an error — needs you}}";;
+  start) TITLE="Started in $PROJ"; BODY="New session ready — send tasks from your phone";;
+  *)     TITLE="Yo Human in $PROJ"; BODY="${MSG:-${SUMMARY:-Claude needs you}}";;
 esac
+# Never ship a garbage body (raw JSON etc.) to a lock screen.
+case "$BODY" in "{"*|"["*|"") BODY="Claude needs you — open the thread";; esac
 
 jq -n --arg c "$CH" --arg t "$TITLE" --arg b "$BODY" --arg s "code" \
   '{channel:$c,title:$t,body:$b,category:"INFO",source:$s}' \
