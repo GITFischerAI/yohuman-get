@@ -223,8 +223,14 @@ _start() {
   if _alive; then echo "yohuman-code: session '$SESS' already running"; return 0; fi
   : > "$LOGDIR/screenlog.0"
   printf '%s' "$workdir" > "${YH_V2_HOME:-$HOME/.yohuman-v2}/run/workdir" 2>/dev/null || true
+  # Per-session agent options chosen on the phone (empty = Claude defaults).
+  # Mode defaults to acceptEdits so a walk-away session flies instead of nagging.
+  local mode="${YH_MODE:-acceptEdits}" model="${YH_MODEL:-}"
+  local flags=""
+  case "$mode" in default|acceptEdits|bypassPermissions|plan) flags="--permission-mode $mode";; esac
+  case "$model" in ""|auto) :;; *) flags="$flags --model $model";; esac
   # screen 4.00.03 writes screenlog.0 to its OWN cwd, so launch from LOGDIR.
-  ( cd "$LOGDIR" && screen -L -dmS "$SESS" bash -lc "cd '$workdir' && exec claude" )
+  ( cd "$LOGDIR" && screen -L -dmS "$SESS" bash -lc "cd '$workdir' && exec claude $flags" )
   sleep 1
   # screen's default log flush is 10s — far too slow for the watcher's verify step.
   # Flush every 1s so log-based verification is timely.
@@ -391,6 +397,21 @@ process_one() {
   value="$(jq -r '.value' "$f" 2>/dev/null)"
   ts="$(jq -r '.ts' "$f" 2>/dev/null)"
   local rid; rid="$(jq -r '.request_id // empty' "$f" 2>/dev/null)"
+
+  # AGENT OPTIONS: a new task may start with a "#yhopts mode=… model=…" line the
+  # phone added. Parse it into env for the spawn, then strip it from the task text.
+  export YH_MODE="" YH_MODEL=""
+  if [ "$kind" = "newtask" ]; then
+    local first; first="$(printf '%s' "$value" | head -1)"
+    case "$first" in
+      "#yhopts "*)
+        YH_MODE="$(printf '%s' "$first" | sed -n 's/.*mode=\([^ ]*\).*/\1/p')"
+        YH_MODEL="$(printf '%s' "$first" | sed -n 's/.*model=\([^ ]*\).*/\1/p')"
+        value="$(printf '%s' "$value" | tail -n +2)"
+        log "agent opts: mode=${YH_MODE:-default} model=${YH_MODEL:-auto}"
+        ;;
+    esac
+  fi
   log "reply $ts: kind=$kind value=$(printf '%s' "$value" | cut -c1-60)${rid:+ rid=$rid}"
 
   # ROUTING: a reply that names a session we don't hold in the screen wrapper is
@@ -664,7 +685,13 @@ case "$EVENT" in
          if [ -z "$BODY" ] && [ -n "$SID" ] && [ "$SID" = "$(yh_wrapped_sid)" ]; then BODY="$SUMMARY"; fi
          BODY="${BODY:-Claude finished — ready for your next task}";;
   idle)  TITLE="Waiting in $PROJ"
-         BODY="${MSG:-$(last_said)}"; BODY="${BODY:-Claude needs your answer}";;
+         # The agent's OWN words first (the question / what it just did). The hook's
+         # message is usually a useless generic "waiting for input" — drop it entirely
+         # if that's all it is, and only fall back to it when the agent left no text.
+         BODY="$(last_said)"
+         case "$MSG" in *[Ww]aiting*|*"needs your input"*|*"needs your response"*|*"is idle"*) MSG="";; esac
+         [ -z "$BODY" ] && BODY="$MSG"
+         BODY="${BODY:-Claude paused — open the thread to reply}";;
   error) TITLE="Error in $PROJ";  BODY="${MSG:-${SUMMARY:-Claude hit an error — needs you}}";;
   start) TITLE="Started in $PROJ"; BODY="New session ready — send tasks from your phone";;
   *)     TITLE="Yo Human in $PROJ"; BODY="${MSG:-${SUMMARY:-Claude needs you}}";;
